@@ -37,18 +37,18 @@ router.post('/', async (req, res) => {
       rgyear
     });
 
-    // Define headers according to the provided curl command
+    // Define headers to match the cURL command
     const headers = {
       "accept": "application/json, text/javascript, */*; q=0.01",
       "accept-language": "en-US,en;q=0.5",
       "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-      "Cookie": "HCSERVICES_SESSID=7vo403htdbcp5a236jsi8vsj1a; JSESSION=52249269; HCSERVICES_SESSID=7vo403htdbcp5a236jsi8vsj1a",
+      "Cookie": "HCSERVICES_SESSID=s4uv9qhdt5b0gipp7t6e5i5pkv; JSESSION=83157213; HCSERVICES_SESSID=s4uv9qhdt5b0gipp7t6e5i5pkv",
       "origin": "https://hcservices.ecourts.gov.in",
       "priority": "u=1, i",
       "referer": "https://hcservices.ecourts.gov.in/",
-      "sec-ch-ua": `"Not(A:Brand";v="99", "Brave";v="133", "Chromium";v="133"`,
+      "sec-ch-ua": "\"Not(A:Brand\";v=\"99\", \"Brave\";v=\"133\", \"Chromium\";v=\"133\"",
       "sec-ch-ua-mobile": "?0",
-      "sec-ch-ua-platform": `"Windows"`,
+      "sec-ch-ua-platform": "\"Windows\"",
       "sec-fetch-dest": "empty",
       "sec-fetch-mode": "cors",
       "sec-fetch-site": "same-origin",
