@@ -18,9 +18,10 @@ router.post('/', async (req, res) => {
   } = req.body;
 
   // Validate all required fields
-  if (!court_code || !state_code || !court_complex_code || !caseStatusSearchType || !captcha || !f || !petres_name || !rgyear) {
+  if (!court_code || !state_code || !court_complex_code || !caseStatusSearchType ||
+      !captcha || !f || !petres_name || !rgyear) {
     return res.status(400).json({ 
-      error: 'All fields (court_code, state_code, court_complex_code, caseStatusSearchType, captcha, f, petres_name, rgyear) are required.' 
+      error: 'All fields are required.' 
     });
   }
 
@@ -37,12 +38,12 @@ router.post('/', async (req, res) => {
       rgyear
     });
 
-    // Define headers according to the provided curl command
+    // Define headers as required by the remote API
     const headers = {
       "accept": "application/json, text/javascript, */*; q=0.01",
       "accept-language": "en-US,en;q=0.5",
       "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-      "Cookie": "HCSERVICES_SESSID=9lsneebp7jgv3pe78o598fs33q; JSESSION=71121698; HCSERVICES_SESSID=9lsneebp7jgv3pe78o598fs33q",
+      "Cookie": "HCSERVICES_SESSID=q53vo1527702fevpbauo1857ki; JSESSION=14010100; HCSERVICES_SESSID=q53vo1527702fevpbauo1857ki",
       "origin": "https://hcservices.ecourts.gov.in",
       "priority": "u=1, i",
       "referer": "https://hcservices.ecourts.gov.in/",
@@ -64,13 +65,59 @@ router.post('/', async (req, res) => {
       { headers }
     );
 
-    // Return the JSON response from the government website to the frontend
-    res.json({ status: 'success', data: response.data });
+    // 1) Log the raw response for debugging
+    console.log("Raw response from government site:", response.data);
+
+    // 2) Attempt to parse the overall response if it's a JSON string
+    let govData = response.data;
+    if (typeof govData === 'string') {
+      try {
+        govData = JSON.parse(govData);
+      } catch (err) {
+        console.error('Error parsing raw response as JSON:', err);
+        // If parsing fails, we'll just keep govData as the raw string
+      }
+    }
+
+    // 3) If govData.con is an array whose first element is a JSON string, parse it
+    if (
+      govData.con &&
+      Array.isArray(govData.con) &&
+      typeof govData.con[0] === 'string'
+    ) {
+      try {
+        govData.con = JSON.parse(govData.con[0]);
+        console.log('Parsed govData.con successfully.');
+      } catch (err) {
+        console.error('Error parsing govData.con:', err);
+      }
+    }
+
+    // If the data is in govData.data.con instead, uncomment and use this logic:
+    /*
+    if (
+      govData.data &&
+      govData.data.con &&
+      Array.isArray(govData.data.con) &&
+      typeof govData.data.con[0] === 'string'
+    ) {
+      try {
+        govData.data.con = JSON.parse(govData.data.con[0]);
+        console.log('Parsed govData.data.con successfully.');
+      } catch (err) {
+        console.error('Error parsing govData.data.con:', err);
+      }
+    }
+    */
+
+    // 4) Render the "results" EJS view with the cleaned data
+    //    "data" is what you'll reference in results.ejs (e.g. data.con)
+    res.render('results', { data: govData });
+
   } catch (error) {
     console.error('Case verification error:', error);
-    res.status(500).json({ error: 'Case verification failed' });
+    res.status(500).render('error', { error: 'Case verification failed' });
   }
 });
 
 module.exports = router;
-

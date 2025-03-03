@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Case Verification</title>
+  <title>Case Verification Home</title>
 </head>
 <body>
-  <h1>Fetch Cases</h1>
-  <form id="caseVerificationForm">
+  <h1>Welcome to Case Verification</h1>
+  <form action="/api/case" method="POST">
     <label for="court_code">Court Code:</label>
     <input type="text" id="court_code" name="court_code" required placeholder="Enter court code"><br><br>
     
@@ -33,28 +33,5 @@
     
     <button type="submit">Verify Case</button>
   </form>
-
-  <pre id="result"></pre>
-
-  <script>
-    document.getElementById('caseVerificationForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const formData = new FormData(e.target);
-      const data = Object.fromEntries(formData.entries());
-      
-      try {
-        const res = await fetch('/api/case', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-        const result = await res.json();
-        document.getElementById('result').innerText = JSON.stringify(result, null, 2);
-      } catch (error) {
-        document.getElementById('result').innerText = 'Error: ' + error.message;
-      }
-    });
-  </script>
 </body>
 </html>

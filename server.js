@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const path = require('path');
 
 const app = express();
 
@@ -7,17 +8,21 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-
+// Set EJS as the view engine and specify the views folder
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
 
 // Routes
 const caseVerificationRoute = require('./routes/caseVerification');
-// If you already have a verification route, you can mount it too.
-// const lawyerVerificationRoute = require('./routes/verification');
-// app.use('/api/verify', lawyerVerificationRoute);
-
+// Mount the case verification route at /api/case
 app.use('/api/case', caseVerificationRoute);
 
-// Serve static files for your test frontend
+// Home route to render your index.ejs file
+app.get('/', (req, res) => {
+  res.render('index');
+});
+
+// Serve static files for your test frontend (e.g., CSS, client-side JS)
 app.use(express.static('public'));
 
 // Start the server
