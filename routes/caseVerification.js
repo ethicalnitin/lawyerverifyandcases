@@ -43,7 +43,7 @@ router.post('/', async (req, res) => {
       "accept": "application/json, text/javascript, */*; q=0.01",
       "accept-language": "en-US,en;q=0.5",
       "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-      "Cookie": "HCSERVICES_SESSID=q53vo1527702fevpbauo1857ki; JSESSION=14010100; HCSERVICES_SESSID=q53vo1527702fevpbauo1857ki",
+      "Cookie": "HCSERVICES_SESSID=q53vo1527702fevpbauo1857ki; JSESSION=4320065; HCSERVICES_SESSID=q53vo1527702fevpbauo1857ki",
       "origin": "https://hcservices.ecourts.gov.in",
       "priority": "u=1, i",
       "referer": "https://hcservices.ecourts.gov.in/",
