@@ -2,10 +2,25 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Case Verification Home</title>
+  <title>Case Verification</title>
+  <script>
+    async function loadCaptcha() {
+      try {
+        const res = await fetch('/api/captcha');
+        const data = await res.json();
+        document.getElementById('captchaImage').src = data.image;
+        // Set the hidden field with the combined cookie string
+        document.getElementById('cookie').value = data.cookie;
+      } catch (error) {
+        console.error('Failed to load captcha:', error);
+      }
+    }
+
+    window.onload = loadCaptcha;
+  </script>
 </head>
 <body>
-  <h1>Welcome to Case Verification</h1>
+  <h1>Case Verification</h1>
   <form action="/api/case" method="POST">
     <label for="court_code">Court Code:</label>
     <input type="text" id="court_code" name="court_code" required placeholder="Enter court code"><br><br>
@@ -22,6 +37,9 @@
     <label for="captcha">Captcha:</label>
     <input type="text" id="captcha" name="captcha" required placeholder="Enter captcha"><br><br>
     
+    <!-- Captcha image -->
+    <img id="captchaImage" alt="Loading captcha..." style="border: 1px solid #ccc; width: 150px; height: auto;"><br><br>
+    
     <label for="f">Case Status (f):</label>
     <input type="text" id="f" name="f" required placeholder="e.g., Pending"><br><br>
     
@@ -30,6 +48,9 @@
     
     <label for="rgyear">Year (rgyear):</label>
     <input type="text" id="rgyear" name="rgyear" required placeholder="Enter year"><br><br>
+    
+    <!-- Hidden field to store the combined cookie string -->
+    <input type="hidden" id="cookie" name="cookie">
     
     <button type="submit">Verify Case</button>
   </form>

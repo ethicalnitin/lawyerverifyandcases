@@ -11,11 +11,13 @@ app.use(express.urlencoded({ extended: true }));
 // Set EJS as the view engine and specify the views folder
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
-
+const captchaRoute = require('./routes/captcha'); 
 // Routes
 const caseVerificationRoute = require('./routes/caseVerification');
 // Mount the case verification route at /api/case
 app.use('/api/case', caseVerificationRoute);
+
+app.use('/api/captcha', captchaRoute); 
 
 // Home route to render your index.ejs file
 app.get('/', (req, res) => {
