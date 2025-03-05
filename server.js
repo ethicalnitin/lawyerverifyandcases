@@ -1,32 +1,51 @@
 require('dotenv').config();
-const express = require('express');
 const path = require('path');
+const express = require('express');
+const session = require('express-session');
 
 const app = express();
 
-// Middleware for parsing JSON and URL-encoded data
-app.use(express.json());
+// Parse URL-encoded forms and JSON
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
-// Set EJS as the view engine and specify the views folder
+// Use a session to store user selections and cookies
+app.use(session({
+  secret: 'someSecretKey', // replace with a real secret in production
+  resave: false,
+  saveUninitialized: true
+}));
+
+// Set up EJS
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
-const captchaRoute = require('./routes/captcha'); 
-// Routes
+
+// Import routes for each step
+const highcourtRoute = require('./routes/highcourt');
+const benchRoute = require('./routes/bench');
+const captchaRoute = require('./routes/captcha');
 const caseVerificationRoute = require('./routes/caseVerification');
-// Mount the case verification route at /api/case
-app.use('/api/case', caseVerificationRoute);
 
-app.use('/api/captcha', captchaRoute); 
+// Mount the routes
+app.use('/', highcourtRoute);          // handles POST /fetchHighcourts
+app.use('/', benchRoute);              // handles POST /fetchBenches
+app.use('/', captchaRoute);            // handles POST /fetchCaptcha
+app.use('/api/case', caseVerificationRoute); // handles final submission
 
-// Home route to render your index.ejs file
-app.get('/', (req, res) => {
-  res.render('index');
-});
-
-// Serve static files for your test frontend (e.g., CSS, client-side JS)
+// Serve static files if needed
 app.use(express.static('public'));
 
-// Start the server
+// STEP 1: GET /
+// Initial page showing a button to fetch high courts.
+app.get('/', (req, res) => {
+  res.render('index', {
+    highcourts: req.session.highcourts || [],
+    selectedHighcourt: req.session.selectedHighcourt || '',
+    benches: req.session.benches || [],
+    selectedBench: req.session.selectedBench || '',
+    captchaImage: null
+  });
+});
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

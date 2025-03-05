@@ -14,32 +14,7 @@
 </head>
 <body>
   <h1>Case Verification Results</h1>
-  <!-- Display the raw JSON data -->
   <pre><%= JSON.stringify(data, null, 2) %></pre>
-
-  <!-- Optionally, if your data has a "con" field that is an array, you can render it as a table -->
-  <% if (data && data.con && Array.isArray(data.con)) { %>
-    <h2>Case List</h2>
-    <table border="1" cellspacing="0" cellpadding="5">
-      <thead>
-        <tr>
-          <% Object.keys(data.con[0]).forEach(function(key) { %>
-            <th><%= key %></th>
-          <% }); %>
-        </tr>
-      </thead>
-      <tbody>
-        <% data.con.forEach(function(record) { %>
-          <tr>
-            <% Object.keys(record).forEach(function(key) { %>
-              <td><%= record[key] %></td>
-            <% }); %>
-          </tr>
-        <% }); %>
-      </tbody>
-    </table>
-  <% } %>
-
-  <a href="/">Back</a>
+  <p><a href="/">Back to Start</a></p>
 </body>
 </html>

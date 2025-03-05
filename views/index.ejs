@@ -1,58 +1,64 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Case Verification</title>
-  <script>
-    async function loadCaptcha() {
-      try {
-        const res = await fetch('/api/captcha');
-        const data = await res.json();
-        document.getElementById('captchaImage').src = data.image;
-        // Set the hidden field with the combined cookie string
-        document.getElementById('cookie').value = data.cookie;
-      } catch (error) {
-        console.error('Failed to load captcha:', error);
-      }
-    }
-
-    window.onload = loadCaptcha;
-  </script>
 </head>
 <body>
   <h1>Case Verification</h1>
-  <form action="/api/case" method="POST">
-    <label for="court_code">Court Code:</label>
-    <input type="text" id="court_code" name="court_code" required placeholder="Enter court code"><br><br>
-    
-    <label for="state_code">State Code:</label>
-    <input type="text" id="state_code" name="state_code" required placeholder="Enter state code"><br><br>
-    
-    <label for="court_complex_code">Court Complex Code:</label>
-    <input type="text" id="court_complex_code" name="court_complex_code" required placeholder="Enter court complex code"><br><br>
-    
-    <label for="caseStatusSearchType">Case Status Search Type:</label>
-    <input type="text" id="caseStatusSearchType" name="caseStatusSearchType" required placeholder="e.g., CSpartyName"><br><br>
-    
-    <label for="captcha">Captcha:</label>
-    <input type="text" id="captcha" name="captcha" required placeholder="Enter captcha"><br><br>
-    
-    <!-- Captcha image -->
-    <img id="captchaImage" alt="Loading captcha..." style="border: 1px solid #ccc; width: 150px; height: auto;"><br><br>
-    
-    <label for="f">Case Status (f):</label>
-    <input type="text" id="f" name="f" required placeholder="e.g., Pending"><br><br>
-    
-    <label for="petres_name">Petitioner Name:</label>
-    <input type="text" id="petres_name" name="petres_name" required placeholder="Enter petitioner name"><br><br>
-    
-    <label for="rgyear">Year (rgyear):</label>
-    <input type="text" id="rgyear" name="rgyear" required placeholder="Enter year"><br><br>
-    
-    <!-- Hidden field to store the combined cookie string -->
-    <input type="hidden" id="cookie" name="cookie">
-    
-    <button type="submit">Verify Case</button>
-  </form>
+
+  <!-- STEP 1: Static High Court Dropdown -->
+  <% if (!selectedHighcourt) { %>
+    <form action="/fetchBenches" method="POST">
+      <label for="selectedHighcourt">Select High Court:</label>
+      <select name="selectedHighcourt" id="selectedHighcourt">
+        <option value="">--Select High Court--</option>
+        <!-- Hardcode the options as per the official site's HTML -->
+        <option value="13" <%= (selectedHighcourt === "13") ? 'selected' : '' %>>Allahabad High Court</option>
+        <option value="1" <%= (selectedHighcourt === "1") ? 'selected' : '' %>>Bombay High Court</option>
+        <option value="2" <%= (selectedHighcourt === "2") ? 'selected' : '' %>>Calcutta High Court</option>
+        <!-- Add others as needed -->
+      </select>
+      <button type="submit">Fetch Benches</button>
+    </form>
+  <% } %>
+
+  <!-- STEP 2: If benches exist but no captcha fetched yet -->
+  <% if (selectedHighcourt && benches && benches.length > 0 && !captchaImage) { %>
+    <form action="/fetchCaptcha" method="POST">
+      <label for="selectedBench">Select Bench:</label>
+      <select name="selectedBench" id="selectedBench">
+        <% benches.forEach(b => { %>
+          <option value="<%= b.id %>" <%= (b.id === selectedBench) ? 'selected' : '' %>><%= b.name %></option>
+        <% }); %>
+      </select>
+      <button type="submit">Fetch Captcha</button>
+    </form>
+  <% } %>
+
+  <!-- STEP 3: Final form if captcha image is available -->
+  <% if (captchaImage) { %>
+    <form action="/api/case" method="POST">
+      <p>
+        <img src="<%= captchaImage %>" alt="Captcha Image">
+      </p>
+      <label for="captcha">Enter Captcha:</label>
+      <input type="text" name="captcha" id="captcha" required><br><br>
+
+      <label for="petres_name">Petitioner Name:</label>
+      <input type="text" name="petres_name" id="petres_name" required><br><br>
+
+      <label for="rgyear">Year:</label>
+      <input type="text" name="rgyear" id="rgyear" required><br><br>
+
+      <label for="caseStatusSearchType">Case Status Search Type:</label>
+      <input type="text" name="caseStatusSearchType" id="caseStatusSearchType" value="CSpartyName"><br><br>
+
+      <label for="f">Case Status (f):</label>
+      <input type="text" name="f" id="f" value="Pending"><br><br>
+
+      <button type="submit">Verify Case</button>
+    </form>
+  <% } %>
 </body>
 </html>

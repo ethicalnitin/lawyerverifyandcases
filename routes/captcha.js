@@ -1,38 +1,45 @@
 // routes/captcha.js
 const express = require('express');
 const axios = require('axios');
+
 const router = express.Router();
 
-router.get('/', async (req, res) => {
+// POST /fetchCaptcha
+router.post('/fetchCaptcha', async (req, res) => {
   try {
-    // Request the captcha image
+    const { selectedBench } = req.body;
+    if (!selectedBench) {
+      return res.status(400).send('No bench selected');
+    }
+
+    req.session.selectedBench = selectedBench;
+
+    // Fetch the captcha image from the official site.
     const captchaResponse = await axios.get(
       'https://hcservices.ecourts.gov.in/hcservices/securimage/securimage_show.php',
       { responseType: 'arraybuffer' }
     );
 
-    console.log("Captcha response headers:", captchaResponse.headers);
-    // Log a snippet of the response to verify we're receiving image data
-    console.log("Captcha response body snippet:", captchaResponse.data.slice(0, 100).toString('utf8'));
-
-    // Convert the image buffer to base64
+    // Convert image buffer to base64.
     const base64Image = Buffer.from(captchaResponse.data, 'binary').toString('base64');
-    const contentType = captchaResponse.headers['content-type'] || 'image/jpeg';
+    const contentType = captchaResponse.headers['content-type'] || 'image/png';
 
-    // Combine all cookies from the 'set-cookie' header into one string
+    // Combine cookies from the captcha response.
     const setCookie = captchaResponse.headers['set-cookie'] || [];
-    const combinedCookies = setCookie
-      .map(cookie => cookie.split(';')[0])
-      .join('; ');
+    const combinedCookies = setCookie.map(c => c.split(';')[0]).join('; ');
 
-    // Return the captcha image (as a data URL) and the combined cookies
-    res.json({
-      image: `data:${contentType};base64,${base64Image}`,
-      cookie: combinedCookies
+    req.session.captchaCookies = combinedCookies;
+
+    res.render('index', {
+      highcourts: req.session.highcourts || [],
+      selectedHighcourt: req.session.selectedHighcourt || '',
+      benches: req.session.benches || [],
+      selectedBench,
+      captchaImage: `data:${contentType};base64,${base64Image}`
     });
   } catch (error) {
     console.error('Captcha fetch error:', error);
-    res.status(500).json({ error: 'Failed to fetch captcha' });
+    res.status(500).send('Failed to fetch captcha');
   }
 });
 
