@@ -39,6 +39,13 @@
   <!-- STEP 3: Final form if captcha image is available -->
   <% if (captchaImage) { %>
     <form action="/api/case" method="POST">
+
+      <!-- Hidden fields to pass required values -->
+    <input type="hidden" name="court_code" value="1">
+    <!-- Use the selected high court as state_code -->
+    <input type="hidden" name="state_code" value="<%= selectedHighcourt %>">
+    <!-- Use the selected bench as court_complex_code -->
+    <input type="hidden" name="court_complex_code" value="<%= selectedHighcourt %>">
       <p>
         <img src="<%= captchaImage %>" alt="Captcha Image">
       </p>

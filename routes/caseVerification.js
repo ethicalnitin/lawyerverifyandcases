@@ -7,20 +7,28 @@ const router = express.Router();
 
 router.post('/', async (req, res) => {
   try {
-    
-    const { captcha, petres_name, rgyear, caseStatusSearchType, f } = req.body;
+    // Read user input from the final form
+    const { captcha, petres_name, rgyear, caseStatusSearchType, f, court_code, state_code, court_complex_code } = req.body;
 
-    
-    const court_code = req.session.selectedHighcourt;
-    const state_code = req.session.selectedBench;
-    const court_complex_code=state_code;
+    // For debugging:
+    console.log('Received values:');
+    console.log('court_code:', court_code);
+    console.log('state_code:', state_code);
+    console.log('court_complex_code:', court_complex_code);
+    console.log('captcha:', captcha);
+    console.log('petres_name:', petres_name);
+    console.log('rgyear:', rgyear);
+    console.log('caseStatusSearchType:', caseStatusSearchType);
+    console.log('f:', f);
+
+    // Retrieve the captcha cookies from session
     const combinedCookie = req.session.captchaCookies;
-
     if (!captcha || !petres_name || !rgyear || !caseStatusSearchType || !f ||
-        !court_code || !state_code || !combinedCookie) {
+        !court_code || !state_code || !court_complex_code || !combinedCookie) {
       return res.status(400).send('Missing required fields or session data');
-    } 
+    }
 
+    // Build the payload
     const payload = querystring.stringify({
       action_code: 'showRecords',
       court_code,
@@ -30,7 +38,8 @@ router.post('/', async (req, res) => {
       petres_name,
       rgyear,
       caseStatusSearchType,
-      f
+      f,
+      appFlag: 'web'
     });
 
     const headers = {
