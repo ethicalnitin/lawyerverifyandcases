@@ -10,25 +10,25 @@ router.post('/', async (req, res) => {
     // Read user input from the final form
     const { captcha, petres_name, rgyear, caseStatusSearchType, f, court_code, state_code, court_complex_code } = req.body;
 
-    // For debugging:
-    console.log('Received values:');
-    console.log('court_code:', court_code);
-    console.log('state_code:', state_code);
-    console.log('court_complex_code:', court_complex_code);
-    console.log('captcha:', captcha);
-    console.log('petres_name:', petres_name);
-    console.log('rgyear:', rgyear);
-    console.log('caseStatusSearchType:', caseStatusSearchType);
-    console.log('f:', f);
+    // Debugging logs
+    console.log('Received values:', {
+      court_code,
+      state_code,
+      court_complex_code,
+      captcha,
+      petres_name,
+      rgyear,
+      caseStatusSearchType,
+      f
+    });
 
     // Retrieve the captcha cookies from session
     const combinedCookie = req.session.captchaCookies;
     if (!captcha || !petres_name || !rgyear || !caseStatusSearchType || !f ||
         !court_code || !state_code || !court_complex_code || !combinedCookie) {
-      return res.status(400).send('Missing required fields or session data');
+      return res.status(400).json({ error: 'Missing required fields or session data' });
     }
 
-    // Build the payload
     const payload = querystring.stringify({
       action_code: 'showRecords',
       court_code,
@@ -72,10 +72,11 @@ router.post('/', async (req, res) => {
       }
     }
 
-    res.render('results', { data: govData });
+    // Return JSON response
+    res.json({ success: true, data: govData });
   } catch (error) {
     console.error('Case verification error:', error);
-    res.status(500).send('Case verification failed');
+    res.status(500).json({ error: 'Case verification failed' });
   }
 });
 

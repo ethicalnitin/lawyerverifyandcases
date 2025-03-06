@@ -20,29 +20,25 @@ function parseBenchString(raw) {
 // POST /fetchBenches
 router.post('/fetchBenches', async (req, res) => {
   try {
-    // Get the selected High Court from the form.
+    // Get the selected High Court from the request body.
     const { selectedHighcourt } = req.body;
     if (!selectedHighcourt) {
-      return res.status(400).send('No highcourt selected');
+      return res.status(400).json({ error: 'No highcourt selected' });
     }
 
     req.session.selectedHighcourt = selectedHighcourt;
-
-    // (Optional) If you already have a cookie from a landing page or captcha step, retrieve it:
-    const combinedCookie = req.session.captchaCookies || ''; 
+    const combinedCookie = req.session.captchaCookies || '';
 
     // Build the payload exactly as in your curl:
-    // action_code=fillHCBench, state_code=<selectedHighcourt>, appFlag=web
     const payload = querystring.stringify({
       action_code: 'fillHCBench',
       state_code: selectedHighcourt,
       appFlag: 'web'
     });
 
-    // Replicate the curl headers.
     const headers = {
       'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-      'Cookie': combinedCookie, // if needed
+      'Cookie': combinedCookie,
       'Accept': '*/*',
       'Accept-Language': 'en-US,en;q=0.5',
       'Origin': 'https://hcservices.ecourts.gov.in',
@@ -66,14 +62,14 @@ router.post('/fetchBenches', async (req, res) => {
 
     console.log('Bench raw:', response.data);
 
-    // Parse the response string into an array of bench objects.
+    // Parse the bench string into an array
     const benches = parseBenchString(response.data);
 
     req.session.benches = benches;
     req.session.selectedBench = '';
-    // Optionally, update session captcha cookies if the response includes any new Set-Cookie headers.
 
-    res.render('index', {
+    // Return JSON data
+    res.json({
       highcourts: req.session.highcourts || [],
       selectedHighcourt,
       benches,
@@ -82,7 +78,7 @@ router.post('/fetchBenches', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching benches:', error);
-    res.status(500).send('Failed to fetch benches');
+    res.status(500).json({ error: 'Failed to fetch benches' });
   }
 });
 
