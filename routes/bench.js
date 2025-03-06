@@ -17,19 +17,26 @@ function parseBenchString(raw) {
   });
 }
 
+// Helper function to extract the connect.sid cookie from request headers
+function getSessionCookie(req) {
+  const cookieHeader = req.headers.cookie || "";
+  const match = cookieHeader.match(/connect\.sid=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 // POST /fetchBenches
 router.post('/fetchBenches', async (req, res) => {
   try {
-    // Get the selected High Court from the request body.
     const { selectedHighcourt } = req.body;
     if (!selectedHighcourt) {
       return res.status(400).json({ error: 'No highcourt selected' });
     }
 
+    // Save selected high court in session
     req.session.selectedHighcourt = selectedHighcourt;
     const combinedCookie = req.session.captchaCookies || '';
 
-    // Build the payload exactly as in your curl:
+    // Build payload as per the curl: action_code=fillHCBench, state_code, appFlag
     const payload = querystring.stringify({
       action_code: 'fillHCBench',
       state_code: selectedHighcourt,
@@ -61,15 +68,14 @@ router.post('/fetchBenches', async (req, res) => {
     );
 
     console.log('Bench raw:', response.data);
-
-    // Parse the bench string into an array
     const benches = parseBenchString(response.data);
 
+    // Save benches in session
     req.session.benches = benches;
     req.session.selectedBench = '';
 
-    // Return JSON data
     res.json({
+      sessionCookie: getSessionCookie(req),
       highcourts: req.session.highcourts || [],
       selectedHighcourt,
       benches,

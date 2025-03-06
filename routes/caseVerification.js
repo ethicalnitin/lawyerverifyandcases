@@ -5,12 +5,18 @@ const querystring = require('querystring');
 
 const router = express.Router();
 
+// Helper function to extract the connect.sid cookie from request headers
+function getSessionCookie(req) {
+  const cookieHeader = req.headers.cookie || "";
+  const match = cookieHeader.match(/connect\.sid=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 router.post('/', async (req, res) => {
   try {
     // Read user input from the final form
     const { captcha, petres_name, rgyear, caseStatusSearchType, f, court_code, state_code, court_complex_code } = req.body;
 
-    // Debugging logs
     console.log('Received values:', {
       court_code,
       state_code,
@@ -22,7 +28,7 @@ router.post('/', async (req, res) => {
       f
     });
 
-    // Retrieve the captcha cookies from session
+    // Retrieve captcha cookies from session
     const combinedCookie = req.session.captchaCookies;
     if (!captcha || !petres_name || !rgyear || !caseStatusSearchType || !f ||
         !court_code || !state_code || !court_complex_code || !combinedCookie) {
@@ -72,8 +78,10 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // Return JSON response
-    res.json({ success: true, data: govData });
+    res.json({ 
+      sessionCookie: getSessionCookie(req),
+      data: govData
+    });
   } catch (error) {
     console.error('Case verification error:', error);
     res.status(500).json({ error: 'Case verification failed' });

@@ -4,6 +4,13 @@ const axios = require('axios');
 
 const router = express.Router();
 
+// Helper function to extract the connect.sid cookie from request headers
+function getSessionCookie(req) {
+  const cookieHeader = req.headers.cookie || "";
+  const match = cookieHeader.match(/connect\.sid=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 // POST /fetchCaptcha
 router.post('/fetchCaptcha', async (req, res) => {
   try {
@@ -27,11 +34,8 @@ router.post('/fetchCaptcha', async (req, res) => {
 
     req.session.captchaCookies = combinedCookies;
 
-    // Return JSON data
     res.json({
-      highcourts: req.session.highcourts || [],
-      selectedHighcourt: req.session.selectedHighcourt || '',
-      benches: req.session.benches || [],
+      sessionCookie: getSessionCookie(req),
       selectedBench,
       captchaImage: `data:${contentType};base64,${base64Image}`
     });

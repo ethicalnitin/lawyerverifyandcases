@@ -13,25 +13,26 @@ app.use(cors());
 
 // Use a session to store user selections and cookies
 app.use(session({
-  secret: 'someSecretKey', // replace with a real secret in production
-  saveUninitialized: true
+  secret: 'someSecretKey', // replace with a strong secret in production
+  resave: false,
+  saveUninitialized: false
 }));
 
-// Set up EJS (you may keep these for development, but our endpoints now return JSON)
+// Set up EJS (for development or fallback)
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// Import routes for each step
+// Import routes
 const benchRoute = require('./routes/bench');
 const captchaRoute = require('./routes/captcha');
 const caseVerificationRoute = require('./routes/caseVerification');
 
-// Mount the routes
-app.use('/', benchRoute);              // handles POST /fetchBenches
-app.use('/', captchaRoute);            // handles POST /fetchCaptcha
-app.use('/api/case', caseVerificationRoute); // handles final submission
+// Mount routes
+app.use('/', benchRoute);               // POST /fetchBenches
+app.use('/', captchaRoute);             // POST /fetchCaptcha
+app.use('/api/case', caseVerificationRoute); // POST /api/case
 
-// Optionally, provide a GET endpoint that returns the static High Court list in JSON
+// Optional: simple GET endpoint to test session creation
 app.get('/', (req, res) => {
   res.json({
     message: 'Welcome to the Case Verification API',
@@ -39,8 +40,8 @@ app.get('/', (req, res) => {
       { id: "13", name: "Allahabad High Court" },
       { id: "1", name: "Bombay High Court" },
       { id: "2", name: "Calcutta High Court" }
-      // ... add additional options as needed.
-    ]
+    ],
+    sessionCookie: req.headers.cookie || "No cookie received"
   });
 });
 
