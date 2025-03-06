@@ -9,7 +9,10 @@ const app = express();
 // Parse URL-encoded forms and JSON
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: '*', // or '*' if allowed, but credentials require a specific origin
+  credentials: true
+}));
 
 // Use a session to store user selections and cookies
 app.use(session({
