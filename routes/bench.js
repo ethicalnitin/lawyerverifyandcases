@@ -17,7 +17,7 @@ function parseBenchString(raw) {
   });
 }
 
-// Helper function to extract the connect.sid cookie from request headers
+// Helper function to extract the connect.sid cookie value from request headers
 function getSessionCookie(req) {
   const cookieHeader = req.headers.cookie || "";
   const match = cookieHeader.match(/connect\.sid=([^;]+)/);
@@ -32,11 +32,11 @@ router.post('/fetchBenches', async (req, res) => {
       return res.status(400).json({ error: 'No highcourt selected' });
     }
 
-    // Save selected high court in session
+    // Store in session
     req.session.selectedHighcourt = selectedHighcourt;
     const combinedCookie = req.session.captchaCookies || '';
 
-    // Build payload as per the curl: action_code=fillHCBench, state_code, appFlag
+    // Build payload
     const payload = querystring.stringify({
       action_code: 'fillHCBench',
       state_code: selectedHighcourt,
@@ -61,6 +61,7 @@ router.post('/fetchBenches', async (req, res) => {
       'x-requested-with': 'XMLHttpRequest'
     };
 
+    // Make the external request
     const response = await axios.post(
       'https://hcservices.ecourts.gov.in/hcservices/cases_qry/index_qry.php',
       payload,
@@ -70,12 +71,19 @@ router.post('/fetchBenches', async (req, res) => {
     console.log('Bench raw:', response.data);
     const benches = parseBenchString(response.data);
 
-    // Save benches in session
     req.session.benches = benches;
     req.session.selectedBench = '';
 
+    // 1) Extract session cookie from request
+    const sessionCookie = getSessionCookie(req);
+
+    // 2) Send it in a custom header, e.g. X-Session-Cookie
+    if (sessionCookie) {
+      res.set('X-Session-Cookie', sessionCookie);
+    }
+
+    // 3) Return the rest of your data in JSON (no sessionCookie in the body)
     res.json({
-      sessionCookie: getSessionCookie(req),
       highcourts: req.session.highcourts || [],
       selectedHighcourt,
       benches,
