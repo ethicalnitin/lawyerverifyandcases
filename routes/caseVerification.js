@@ -1,37 +1,23 @@
-// routes/caseVerification.js
 const express = require('express');
 const axios = require('axios');
 const querystring = require('querystring');
 
 const router = express.Router();
 
-// Helper function to extract the connect.sid cookie from request headers
 function getSessionCookie(req) {
-  const cookieHeader = req.headers.cookie || "";
-  const match = cookieHeader.match(/connect\.sid=([^;]+)/);
-  return match ? decodeURIComponent(match[1]) : null;
+  return req.sessionID || null;
 }
 
 router.post('/', async (req, res) => {
   try {
-    // Read user input from the final form
-    const { captcha, petres_name, rgyear, caseStatusSearchType, f, court_code, state_code, court_complex_code } = req.body;
+    const { captcha, petres_name, rgyear, caseStatusSearchType, f } = req.body;
+    // Use session-stored values for court details if not provided in request
+    const court_code = req.body.court_code || req.session.selectedHighcourt;
+    const state_code = req.body.state_code || req.session.selectedBench;
+    const court_complex_code = req.body.court_complex_code || req.session.selectedBench;
 
-    console.log('Received values:', {
-      court_code,
-      state_code,
-      court_complex_code,
-      captcha,
-      petres_name,
-      rgyear,
-      caseStatusSearchType,
-      f
-    });
-
-    // Retrieve captcha cookies from session
-    const combinedCookie = req.session.captchaCookies;
     if (!captcha || !petres_name || !rgyear || !caseStatusSearchType || !f ||
-        !court_code || !state_code || !court_complex_code || !combinedCookie) {
+        !court_code || !state_code || !court_complex_code || !req.session.captchaCookies) {
       return res.status(400).json({ error: 'Missing required fields or session data' });
     }
 
@@ -50,7 +36,7 @@ router.post('/', async (req, res) => {
 
     const headers = {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'Cookie': combinedCookie
+      'Cookie': req.session.captchaCookies
     };
 
     const response = await axios.post(
@@ -66,7 +52,7 @@ router.post('/', async (req, res) => {
       try {
         govData = JSON.parse(govData);
       } catch {
-        // leave as string if JSON.parse fails
+        // Leave as string if JSON.parse fails
       }
     }
 
@@ -78,8 +64,8 @@ router.post('/', async (req, res) => {
       }
     }
 
-    res.json({ 
-      sessionCookie: getSessionCookie(req),
+    res.json({
+      sessionID: getSessionCookie(req),
       data: govData
     });
   } catch (error) {

@@ -1,17 +1,12 @@
-// routes/captcha.js
 const express = require('express');
 const axios = require('axios');
 
 const router = express.Router();
 
-// Helper function to extract the connect.sid cookie from request headers
 function getSessionCookie(req) {
-  const cookieHeader = req.headers.cookie || "";
-  const match = cookieHeader.match(/connect\.sid=([^;]+)/);
-  return match ? decodeURIComponent(match[1]) : null;
+  return req.sessionID || null;
 }
 
-// POST /fetchCaptcha
 router.post('/fetchCaptcha', async (req, res) => {
   try {
     const { selectedBench } = req.body;
@@ -33,10 +28,10 @@ router.post('/fetchCaptcha', async (req, res) => {
     const combinedCookies = setCookie.map(c => c.split(';')[0]).join('; ');
 
     req.session.captchaCookies = combinedCookies;
+    await req.session.save(); // Ensure the session is saved
 
     res.json({
-      sessionCookie: getSessionCookie(req),
-      selectedBench,
+      sessionID: getSessionCookie(req),
       captchaImage: `data:${contentType};base64,${base64Image}`
     });
   } catch (error) {
