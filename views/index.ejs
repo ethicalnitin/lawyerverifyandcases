@@ -1,124 +1,208 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
-  <title>Case Verification</title>
+  <title>Lawyer Verify & Cases</title>
+  <!-- Including jQuery for AJAX requests -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <style>
-    label { display: block; margin-top: 10px; }
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    form div { margin-bottom: 10px; }
+    label { display: inline-block; width: 150px; }
+    #caseList li { cursor: pointer; margin-bottom: 5px; }
+    #caseList li:hover { text-decoration: underline; }
+    .section { border: 1px solid #ddd; padding: 15px; margin-top: 20px; }
   </style>
 </head>
 <body>
-  <h1>Case Verification</h1>
+  <h1>Case Search</h1>
   
-  <!-- Final Form: All fields on one page -->
-  <form id="finalForm" action="/api/case" method="POST">
-    <!-- Static High Court Dropdown (hardcoded) -->
-    <label for="selectedHighcourt">Select High Court:</label>
-    <select name="selectedHighcourt" id="selectedHighcourt" required>
-      <option value="">--Select High Court--</option>
-      <option value="13">Allahabad High Court</option>
-      <option value="1">Bombay High Court</option>
-      <option value="2">Calcutta High Court</option>
-      <!-- Add additional options as needed -->
-    </select>
-
-    <!-- Bench Dropdown (populated dynamically) -->
-    <label for="selectedBench">Select Bench:</label>
-    <select name="selectedBench" id="selectedBench" required>
-      <option value="">--Select Bench--</option>
-    </select>
-
-    <!-- Captcha image and input -->
-    <div id="captchaSection" style="display:none;">
-      <p>
-        <img id="captchaImage" src="" alt="Captcha Image" style="border:1px solid #ccc; width:150px;">
-      </p>
-      <label for="captcha">Enter Captcha:</label>
-      <input type="text" name="captcha" id="captcha" required>
+  <!-- Form for input fields -->
+  <form id="caseForm">
+    <!-- High Court Selection -->
+    <div>
+      <label for="highcourt">Select High Court:</label>
+      <select id="highcourt" name="highcourt" required>
+        <option value="">--Select High Court--</option>
+        <option value="1">High Court 1</option>
+        <option value="2">High Court 2</option>
+        <option value="3">High Court 3</option>
+        <option value="4">High Court 4</option>
+        <option value="5">High Court 5</option>
+      </select>
     </div>
-
-    <!-- Other final fields -->
-    <label for="petres_name">Petitioner Name:</label>
-    <input type="text" name="petres_name" id="petres_name" required>
-
-    <label for="rgyear">Year:</label>
-    <input type="text" name="rgyear" id="rgyear" required>
-
-    <label for="caseStatusSearchType">Case Status Search Type:</label>
-    <input type="text" name="caseStatusSearchType" id="caseStatusSearchType" value="CSpartyName" required>
-
-    <label for="f">Case Status (f):</label>
-    <input type="text" name="f" id="f" value="Pending" required>
-
-    <!-- Hidden fields to pass required values to final endpoint -->
-    <!-- These will be derived from the selections -->
-    <input type="hidden" name="court_code" id="court_code" value="1">
-    <!-- In our setup, we use the static high court value as state_code -->
-    <input type="hidden" name="state_code" id="state_code" value="">
-    <!-- And the bench selection becomes court_complex_code -->
-    <input type="hidden" name="court_complex_code" id="court_complex_code" value="">
-
-    <!-- Optionally, if you need to pass cookie from captcha step, you can add a hidden field -->
-    <!-- <input type="hidden" name="cookie" id="hiddenCookie" value=""> -->
-
-    <br><br>
-    <button type="submit">Verify Case</button>
+    
+    <!-- Bench Selection (populated dynamically) -->
+    <div id="benchDiv" style="display:none;">
+      <label for="bench">Select Bench:</label>
+      <select id="bench" name="bench" required>
+        <option value="">--Select Bench--</option>
+      </select>
+    </div>
+    
+    <!-- Captcha Section -->
+    <div id="captchaDiv" style="display:none;">
+      <button type="button" id="fetchCaptchaBtn">Fetch Captcha</button>
+      <div id="captchaContainer" style="margin:10px 0;"></div>
+      <div>
+        <label for="captcha">Enter Captcha:</label>
+        <input type="text" id="captcha" name="captcha" required>
+      </div>
+    </div>
+    
+    <!-- Additional Search Options (shown after captcha is fetched) -->
+    <div id="searchOptions" style="display:none;">
+      <div>
+        <label for="state">Select State:</label>
+        <select id="state" name="state" required>
+          <option value="Pending">Pending</option>
+          <option value="Both">Both</option>
+          <option value="Disposed">Disposed</option>
+        </select>
+      </div>
+      <div>
+        <label for="rgyear">Registration Year:</label>
+        <input type="text" id="rgyear" name="rgyear" required>
+      </div>
+      <div>
+        <label for="petres_name">Petitioner Name:</label>
+        <input type="text" id="petres_name" name="petres_name" required>
+      </div>
+      <div>
+        <!-- You mentioned 'rtc' in your instructions; add it here if needed -->
+        <!-- <label for="rtc">RTC:</label>
+        <input type="text" id="rtc" name="rtc"> -->
+      </div>
+      <button type="submit">Get Cases</button>
+    </div>
   </form>
-
+  
+  <!-- Section to display the list of cases -->
+  <div id="caseList" class="section" style="display:none;">
+    <h2>Case List</h2>
+    <ul id="cases"></ul>
+  </div>
+  
+  <!-- Section to display case details -->
+  <div id="caseDetails" class="section" style="display:none;">
+    <h2>Case Details</h2>
+    <div id="caseDetailContent"></div>
+  </div>
+  
   <script>
-    // When the High Court is changed, fetch benches
-    document.getElementById('selectedHighcourt').addEventListener('change', async function() {
-      const selectedHighcourt = this.value;
-      if (!selectedHighcourt) return;
-      
-      // Update hidden state_code field to selected high court code
-      document.getElementById('state_code').value = selectedHighcourt;
-      
-      try {
-        const response = await fetch('/fetchBenches', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({ selectedHighcourt })
-        });
-        const data = await response.json();
-        const benchSelect = document.getElementById('selectedBench');
-        benchSelect.innerHTML = '<option value="">--Select Bench--</option>';
-        data.benches.forEach(bench => {
-          const opt = document.createElement('option');
-          opt.value = bench.id;
-          opt.textContent = bench.name;
-          benchSelect.appendChild(opt);
-        });
-      } catch (err) {
-        console.error('Error fetching benches:', err);
-      }
-    });
-
-    // When the Bench is changed, fetch the captcha
-    document.getElementById('selectedBench').addEventListener('change', async function() {
-      const selectedBench = this.value;
-      if (!selectedBench) return;
-      
-      // Update hidden field for court_complex_code to selected bench
-      document.getElementById('court_complex_code').value = selectedBench;
-      
-      try {
-        const response = await fetch('/fetchCaptcha', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ selectedBench })
-        });
-        const data = await response.json();
-        if(data.captchaImage) {
-          document.getElementById('captchaImage').src = data.captchaImage;
-          // Optionally set hidden cookie field if needed:
-          // document.getElementById('hiddenCookie').value = data.captchaCookies;
-          // Show the captcha section
-          document.getElementById('captchaSection').style.display = 'block';
+    $(document).ready(function() {
+      // When High Court is changed, fetch benches
+      $('#highcourt').on('change', function() {
+        var highcourt = $(this).val();
+        if(highcourt) {
+          $.ajax({
+            url: '/fetchBenches', // This should proxy to https://lawyerverifyandcases.onrender.com/fetchBenches
+            type: 'POST',
+            data: { selectedHighcourt: highcourt },
+            success: function(data) {
+              // Assuming the response is an array of bench objects {value, name}
+              var benchSelect = $('#bench');
+              benchSelect.empty().append('<option value="">--Select Bench--</option>');
+              $.each(data, function(i, bench) {
+                benchSelect.append('<option value="'+ bench.value +'">'+ bench.name +'</option>');
+              });
+              $('#benchDiv').show();
+            },
+            error: function() {
+              alert('Error fetching benches.');
+            }
+          });
+        } else {
+          $('#benchDiv, #captchaDiv, #searchOptions').hide();
         }
-      } catch (err) {
-        console.error('Error fetching captcha:', err);
-      }
+      });
+      
+      // When Bench is selected, show captcha section
+      $('#bench').on('change', function() {
+        var bench = $(this).val();
+        if(bench) {
+          $('#captchaDiv').show();
+        } else {
+          $('#captchaDiv, #searchOptions').hide();
+        }
+      });
+      
+      // Fetch captcha on button click
+      $('#fetchCaptchaBtn').on('click', function() {
+        var selectedBench = $('#bench').val();
+        $.ajax({
+          url: '/fetchCaptcha', // This should proxy to https://lawyerverifyandcases.onrender.com/fetchCaptcha
+          type: 'POST',
+          data: { selectedBench: selectedBench },
+          success: function(data) {
+            // For demonstration, assume the response has a property 'captchaText'
+            $('#captchaContainer').html('<strong>Captcha:</strong> ' + data.captchaText);
+            $('#searchOptions').show();
+          },
+          error: function() {
+            alert('Error fetching captcha.');
+          }
+        });
+      });
+      
+      // Submit form to fetch cases
+      $('#caseForm').on('submit', function(e) {
+        e.preventDefault();
+        // Prepare data for API call
+        var formData = {
+          court_code: $('#highcourt').val(),         // mapping highcourt to court_code
+          state_code: "13",                           // using 13 as per your curl example; adjust as needed
+          court_complex_code: $('#bench').val(),
+          captcha: $('#captcha').val(),
+          petres_name: $('#petres_name').val(),
+          rgyear: $('#rgyear').val(),
+          caseStatusSearchType: 'CSpartyName',
+          f: $('#state').val()                        // using the state dropdown (Pending, Both, Disposed)
+        };
+        
+        $.ajax({
+          url: '/api/case', // This should proxy to https://lawyerverifyandcases.onrender.com/api/case
+          type: 'POST',
+          data: formData,
+          success: function(data) {
+            // Assuming 'data' is an array of case objects with properties: case_no, cino, case_title, etc.
+            $('#caseList').show();
+            var casesUl = $('#cases').empty();
+            $.each(data, function(i, caseItem) {
+              casesUl.append('<li data-case_no="'+ caseItem.case_no +'" data-cino="'+ caseItem.cino +'">' + caseItem.case_title + '</li>');
+            });
+          },
+          error: function() {
+            alert('Error fetching cases.');
+          }
+        });
+      });
+      
+      // When a case is clicked, fetch case details
+      $('#cases').on('click', 'li', function() {
+        var case_no = $(this).data('case_no');
+        var cino = $(this).data('cino');
+        $.ajax({
+          url: '/api/caseInformation/fetchCaseDetails', // This should proxy to https://lawyerverifyandcases.onrender.com/api/caseInformation/fetchCaseDetails
+          type: 'POST',
+          data: {
+            court_code: $('#highcourt').val(),
+            state_code: "13", // using 13 as per your curl command; adjust if needed
+            court_complex_code: $('#bench').val(),
+            case_no: case_no,
+            cino: cino,
+            appFlag: ''
+          },
+          success: function(data) {
+            // Assume the response 'data' contains HTML details of the case.
+            $('#caseDetails').show();
+            $('#caseDetailContent').html(data);
+          },
+          error: function() {
+            alert('Error fetching case details.');
+          }
+        });
+      });
     });
   </script>
 </body>

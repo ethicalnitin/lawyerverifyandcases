@@ -2,6 +2,9 @@
 const express = require('express');
 const axios = require('axios');
 const querystring = require('querystring');
+const cheerio = require('cheerio');
+const $ = cheerio.load(html);
+
 
 const router = express.Router();
 
@@ -13,14 +16,14 @@ router.post('/fetchCaseDetails', async (req, res) => {
   try {
     const { court_code, state_code, court_complex_code, case_no, cino } = req.body;
 
-    // Ensure required fields and session cookies exist
+    
     if (!court_code || !state_code || !court_complex_code || !case_no || !cino || !req.session.captchaCookies) {
       return res.status(400).json({ error: 'Missing required fields or session data' });
     }
 
     console.log('Fetching case details for:', { court_code, state_code, court_complex_code, case_no, cino });
 
-    // Build the form payload
+    
     const payload = querystring.stringify({
       court_code,
       state_code,
@@ -56,15 +59,99 @@ router.post('/fetchCaseDetails', async (req, res) => {
       { headers }
     );
 
-    console.log('Raw HTML response:', response.data);
+    const html = response.data;
 
-    // Set a custom header with the session ID (optional)
-    res.set('X-Session-ID', getSessionCookie(req));
+    // === PARSE HTML WITH CHEERIO ===
+    const $ = cheerio.load(html);
 
-    // Return the raw HTML (no JSON parsing, no Cheerio)
-    // By default, Express might send it as text/html if we do res.send(response.data)
-    // but let's be explicit:
-    res.type('html').send(response.data);
+    // 1) Parse Case Details
+    // (Adjust selectors to match the actual HTML structure)
+    // Example: the first row/column in the .case_details_table
+    const caseDetails = {};
+    const $caseDetailsRows = $('.case_details_table tr');
+    $caseDetailsRows.each((i, row) => {
+      const tds = $(row).find('td');
+      // e.g. "Filing Number" in first cell, "FAPL /70593/2021" in second cell
+      if (tds.length >= 2) {
+        const key = $(tds[0]).text().trim();
+        const value = $(tds[1]).text().trim();
+        // Store the data in an object
+        // e.g. "Filing Number" -> "FAPL /70593/2021"
+        caseDetails[key] = value;
+      }
+    });
+
+    // 2) Parse Case Status
+    const caseStatus = {};
+    const $caseStatusTable = $('.table_r');
+    const $caseStatusRows = $caseStatusTable.find('tr');
+    $caseStatusRows.each((i, row) => {
+      const tds = $(row).find('td');
+      if (tds.length >= 2) {
+        const key = $(tds[0]).text().trim();
+        const value = $(tds[1]).text().trim();
+        caseStatus[key] = value;
+      }
+    });
+
+    // 3) Parse Petitioner and Advocate
+    const petitionerAdvocateText = $('.Petitioner_Advocate_table').text().trim();
+    // You might split or parse further if needed
+    // e.g. "1) SMT REEMA JAIN\nAdvocate - ..." etc.
+    const petitionerAdvocate = petitionerAdvocateText.split('\n').map(x => x.trim()).filter(Boolean);
+
+    // 4) Parse Respondent and Advocate
+    const respondentAdvocateText = $('.Respondent_Advocate_table').text().trim();
+    const respondentAdvocate = respondentAdvocateText.split('\n').map(x => x.trim()).filter(Boolean);
+
+    // 5) Parse History of Case Hearing
+    const hearingHistory = [];
+    const $hearingTable = $('.history_table');
+    $hearingTable.find('tr').each((i, row) => {
+      // skip header row if needed
+      if (i === 0) return; 
+      const tds = $(row).find('td');
+      if (tds.length >= 5) {
+        hearingHistory.push({
+          causeListType: $(tds[0]).text().trim(),
+          judge: $(tds[1]).text().trim(),
+          businessOnDate: $(tds[2]).text().trim(),
+          hearingDate: $(tds[3]).text().trim(),
+          purpose: $(tds[4]).text().trim(),
+        });
+      }
+    });
+
+    // 6) Parse Orders
+    const orders = [];
+    const $orderTable = $('.order_table');
+    $orderTable.find('tr').each((i, row) => {
+      // skip header row
+      if (i === 0) return; 
+      const tds = $(row).find('td');
+      if (tds.length >= 5) {
+        orders.push({
+          orderNumber: $(tds[0]).text().trim(),
+          orderOn: $(tds[1]).text().trim(),
+          judge: $(tds[2]).text().trim(),
+          orderDate: $(tds[3]).text().trim(),
+          orderLink: $(tds[4]).find('a').attr('href') || null
+        });
+      }
+    });
+
+    // Build final JSON
+    const parsedData = {
+      caseDetails,
+      caseStatus,
+      petitionerAdvocate,
+      respondentAdvocate,
+      hearingHistory,
+      orders
+    };
+
+    // Return JSON instead of raw HTML
+    res.json(parsedData);
 
   } catch (error) {
     console.error('Error fetching case details:', error);
