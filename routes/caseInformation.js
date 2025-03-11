@@ -3,7 +3,6 @@ const express = require('express');
 const axios = require('axios');
 const querystring = require('querystring');
 const cheerio = require('cheerio');
-const $ = cheerio.load(html);
 
 
 const router = express.Router();
