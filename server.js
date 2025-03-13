@@ -3,52 +3,41 @@ const path = require('path');
 const express = require('express');
 const session = require('express-session');
 const cors = require('cors');
-
 const app = express();
-
-// Enable trust proxy (required for Render when using secure cookies)
 app.set('trust proxy', 1);
-
-// Parse URL-encoded forms and JSON
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// CORS configuration – set origin to your frontend domain in production
 app.use(cors({
   origin: '*', 
   credentials: true
 }));
 
-// Session configuration – update for production on Render (HTTPS)
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'someSecretKey', // use a strong secret via env variable
+  secret: process.env.SESSION_SECRET || 'someSecretKey', 
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: true,       // use true in production on Render (HTTPS)
+    secure: true,
     httpOnly: true,
-    sameSite: 'None'    // allows cross-site cookies
-    // domain: 'lawyerverifyandcases.onrender.com', // (optional) specify your backend domain if needed
+    sameSite: 'None'    
   }
 }));
 
-// Set up EJS for server-side rendering (if needed)
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// Import routes
 const benchRoute = require('./routes/bench');
 const captchaRoute = require('./routes/captcha');
 const caseVerificationRoute = require('./routes/caseVerification');
 const caseInformationRoute = require('./routes/caseInformation');
 
-// Mount routes
+
 app.use('/', benchRoute);
 app.use('/', captchaRoute);
 app.use('/api/case', caseVerificationRoute);
 app.use('/api/caseInformation', caseInformationRoute);
 
-// Test route to force session creation
 app.get('/', (req, res) => {
   req.session.visitCount = (req.session.visitCount || 0) + 1;
   res.json({

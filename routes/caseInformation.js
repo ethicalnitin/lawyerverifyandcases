@@ -1,4 +1,3 @@
-// routes/caseInformation.js
 const express = require('express');
 const axios = require('axios');
 const querystring = require('querystring');
@@ -8,7 +7,7 @@ const cheerio = require('cheerio');
 const router = express.Router();
 
 function getSessionCookie(req) {
-  return req.sessionID || null; // Session ID for debugging/logging
+  return req.sessionID || null; // Session ID for debugging
 }
 
 router.post('/fetchCaseDetails', async (req, res) => {
@@ -32,7 +31,7 @@ router.post('/fetchCaseDetails', async (req, res) => {
       appFlag: ''
     });
 
-    // Build headers, using the stored captcha cookies from session
+
     const headers = {
       'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
       'Cookie': req.session.captchaCookies,
@@ -60,27 +59,23 @@ router.post('/fetchCaseDetails', async (req, res) => {
 
     const html = response.data;
 
-    // === PARSE HTML WITH CHEERIO ===
+
     const $ = cheerio.load(html);
 
-    // 1) Parse Case Details
-    // (Adjust selectors to match the actual HTML structure)
-    // Example: the first row/column in the .case_details_table
     const caseDetails = {};
     const $caseDetailsRows = $('.case_details_table tr');
     $caseDetailsRows.each((i, row) => {
       const tds = $(row).find('td');
-      // e.g. "Filing Number" in first cell, "FAPL /70593/2021" in second cell
+      
       if (tds.length >= 2) {
         const key = $(tds[0]).text().trim();
         const value = $(tds[1]).text().trim();
-        // Store the data in an object
-        // e.g. "Filing Number" -> "FAPL /70593/2021"
+ 
         caseDetails[key] = value;
       }
     });
 
-    // 2) Parse Case Status
+   
     const caseStatus = {};
     const $caseStatusTable = $('.table_r');
     const $caseStatusRows = $caseStatusTable.find('tr');
@@ -93,21 +88,19 @@ router.post('/fetchCaseDetails', async (req, res) => {
       }
     });
 
-    // 3) Parse Petitioner and Advocate
     const petitionerAdvocateText = $('.Petitioner_Advocate_table').text().trim();
-    // You might split or parse further if needed
-    // e.g. "1) SMT REEMA JAIN\nAdvocate - ..." etc.
+   
     const petitionerAdvocate = petitionerAdvocateText.split('\n').map(x => x.trim()).filter(Boolean);
 
-    // 4) Parse Respondent and Advocate
+    
     const respondentAdvocateText = $('.Respondent_Advocate_table').text().trim();
     const respondentAdvocate = respondentAdvocateText.split('\n').map(x => x.trim()).filter(Boolean);
 
-    // 5) Parse History of Case Hearing
+    
     const hearingHistory = [];
     const $hearingTable = $('.history_table');
     $hearingTable.find('tr').each((i, row) => {
-      // skip header row if needed
+      
       if (i === 0) return; 
       const tds = $(row).find('td');
       if (tds.length >= 5) {
@@ -121,11 +114,11 @@ router.post('/fetchCaseDetails', async (req, res) => {
       }
     });
 
-    // 6) Parse Orders
+    
     const orders = [];
     const $orderTable = $('.order_table');
     $orderTable.find('tr').each((i, row) => {
-      // skip header row
+
       if (i === 0) return; 
       const tds = $(row).find('td');
       if (tds.length >= 5) {
@@ -149,7 +142,7 @@ router.post('/fetchCaseDetails', async (req, res) => {
       orders
     };
 
-    // Return JSON instead of raw HTML
+    
     res.json(parsedData);
 
   } catch (error) {
