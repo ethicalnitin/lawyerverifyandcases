@@ -13,16 +13,19 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'someSecretKey', 
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: true,
-    httpOnly: true,
-    sameSite: 'None'    
-  }
-}));
+app.use(
+    session({
+        secret: "your-secret",
+        resave: false,
+        saveUninitialized: true,
+        cookie: {
+            httpOnly: true, 
+            secure: false, // ❌ Set to false because localhost is NOT HTTPS
+            sameSite: "Lax", // ✅ Allows cross-origin requests from localhost but prevents third-party tracking
+        },
+    })
+);
+
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
