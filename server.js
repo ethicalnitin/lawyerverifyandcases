@@ -1,29 +1,34 @@
 require('dotenv').config();
 const path = require('path');
 const express = require('express');
+
+
 const session = require('express-session');
 const cors = require('cors');
 const app = express();
+
 app.set('trust proxy', 1);
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-app.use(cors({
-  origin: 'http://localhost:3000', 
-  credentials: true
-}));
+app.use(
+  cors({
+      origin: ["http://localhost:3000"], // ✅ Allow frontend requests
+      credentials: true, // ✅ Allow cookies to be sent
+  })
+);
 
 app.use(
-    session({
-        secret: "your-secret",
-        resave: false,
-        saveUninitialized: true,
-        cookie: {
-            httpOnly: true, 
-            secure: false, // ❌ Set to false because localhost is NOT HTTPS
-            sameSite: "Lax", // ✅ Allows cross-origin requests from localhost but prevents third-party tracking
-        },
-    })
+  session({
+      secret: "your-secret-key", 
+      resave: false,
+      saveUninitialized: true,
+      cookie: {
+          httpOnly: true,
+          secure: false, // ✅ Set to false for local testing (must be true in production)
+          sameSite: "Lax", // ✅ Allows cookies to be sent across origins
+      },
+  })
 );
 
 
@@ -55,5 +60,5 @@ app.get('/', (req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3005;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

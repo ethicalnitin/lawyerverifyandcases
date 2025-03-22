@@ -19,6 +19,7 @@ function parseBenchString(raw) {
 }
 
 router.post('/fetchBenches', async (req, res) => {
+  const captchaCookies = req.headers['set-cookie'];
   try {
     const { selectedHighcourt } = req.body;
     if (!selectedHighcourt) {
