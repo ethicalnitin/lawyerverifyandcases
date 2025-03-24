@@ -13,7 +13,7 @@ app.use(express.json());
 
 app.use(
   cors({
-      origin: ["https://frontend-lawyer.onrender.com/"], // ✅ Allow frontend requests
+      origin: ["https://frontend-lawyer.onrender.com"], // ✅ Allow frontend requests
       credentials: true, // ✅ Allow cookies to be sent
   })
 );
