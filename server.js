@@ -26,7 +26,7 @@ app.use(
       cookie: {
           httpOnly: true,
           secure: true, // ✅ Set to false for local testing (must be true in production)
-          sameSite: "Lax", // ✅ Allows cookies to be sent across origins
+          sameSite: "None", // ✅ Allows cookies to be sent across origins
       },
   })
 );
