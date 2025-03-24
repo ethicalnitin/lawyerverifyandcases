@@ -25,7 +25,7 @@ app.use(
       saveUninitialized: true,
       cookie: {
           httpOnly: true,
-          secure: false, // ✅ Set to false for local testing (must be true in production)
+          secure: true, // ✅ Set to false for local testing (must be true in production)
           sameSite: "Lax", // ✅ Allows cookies to be sent across origins
       },
   })
