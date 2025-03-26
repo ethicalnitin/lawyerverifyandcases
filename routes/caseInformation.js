@@ -10,6 +10,10 @@ function getSessionCookie(req) {
   return req.sessionID || null; // Session ID for debugging
 }
 
+ if (req.body.captchaCookies) {
+      req.session.captchaCookies = req.body.captchaCookies;
+    }
+
 router.post('/fetchCaseDetails', async (req, res) => {
   try {
     const { court_code, state_code, court_complex_code, case_no, cino } = req.body;
