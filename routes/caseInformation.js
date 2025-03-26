@@ -10,14 +10,9 @@ function getSessionCookie(req) {
   return req.sessionID || null; // Session ID for debugging
 }
 
-
-
 router.post('/fetchCaseDetails', async (req, res) => {
   try {
     const { court_code, state_code, court_complex_code, case_no, cino } = req.body;
-     if (req.body.captchaCookies) {
-      req.session.captchaCookies = req.body.captchaCookies;
-    }
 
     
     if (!court_code || !state_code || !court_complex_code || !case_no || !cino || !req.session.captchaCookies) {
