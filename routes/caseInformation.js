@@ -32,22 +32,24 @@ router.post('/fetchCaseDetails', async (req, res) => {
     });
 
 
-    const headers = {
-      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-      'Cookie': req.session.captchaCookies,
-      'Accept': '*/*',
-      'Accept-Language': 'en-US,en;q=0.5',
-      'Origin': 'https://hcservices.ecourts.gov.in',
-      'Referer': 'https://hcservices.ecourts.gov.in/',
-      'sec-ch-ua': '"Chromium";v="134", "Not:A-Brand";v="24", "Brave";v="134"',
-      'sec-ch-ua-mobile': '?0',
-      'sec-ch-ua-platform': '"Windows"',
-      'sec-fetch-dest': 'empty',
-      'sec-fetch-mode': 'cors',
-      'sec-fetch-site': 'same-origin',
-      'sec-gpc': '1',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-      'x-requested-with': 'XMLHttpRequest'
+  const headers = {
+      "Accept": "application/json, text/javascript, */*; q=0.01",
+      "Accept-Encoding": "gzip, deflate, br, zstd",
+      "Accept-Language": "en-US,en;q=0.5",
+      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+      "Connection": "keep-alive",
+      "Cookie": captchaCookies, // Ensure captchaCookies is correctly set
+      "Origin": "http://localhost:3000",
+      "Referer": "http://localhost:3000/",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+      "Sec-Fetch-Dest": "empty",
+      "Sec-Fetch-Mode": "cors",
+      "Sec-Fetch-Site": "same-site",
+      "Sec-GPC": "1",
+      "Sec-Ch-Ua": "\"Chromium\";v=\"134\", \"Not:A-Brand\";v=\"24\", \"Brave\";v=\"134\"",
+      "Sec-Ch-Ua-Mobile": "?0",
+      "Sec-Ch-Ua-Platform": "\"Windows\"",
+      "X-Requested-With": "XMLHttpRequest"
     };
 
     // Make the POST request
