@@ -39,12 +39,14 @@ const benchRoute = require('./routes/bench');
 const captchaRoute = require('./routes/captcha');
 const caseVerificationRoute = require('./routes/caseVerification');
 const caseInformationRoute = require('./routes/caseInformation');
+const vieworderroute = require('./routes/vieworder');
 
 
 app.use('/', benchRoute);
 app.use('/', captchaRoute);
 app.use('/api/case', caseVerificationRoute);
 app.use('/api/caseInformation', caseInformationRoute);
+app.use('/api/vieworder', vieworderroute);
 
 app.get('/', (req, res) => {
   req.session.visitCount = (req.session.visitCount || 0) + 1;
