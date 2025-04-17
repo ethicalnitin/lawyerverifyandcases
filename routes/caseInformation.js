@@ -62,18 +62,24 @@ router.post('/fetchCaseDetails', async (req, res) => {
 
     const $ = cheerio.load(html);
 
-    const caseDetails = {};
-    const $caseDetailsRows = $('.case_details_table tr');
-    $caseDetailsRows.each((i, row) => {
-      const tds = $(row).find('td');
-      
-      if (tds.length >= 2) {
-        const key = $(tds[0]).text().trim();
-        const value = $(tds[1]).text().trim();
- 
-        caseDetails[key] = value;
-      }
-    });
+   const caseDetails = {};
+const $caseDetailsRows = $('.case_details_table tr');
+
+$caseDetailsRows.each((i, row) => {
+  const tds = $(row).find('td');
+
+  for (let j = 0; j < tds.length; j += 2) {
+    const key = $(tds[j]).text().trim().replace(/\s+/g, ' ');
+    const value = $(tds[j + 1]) ? $(tds[j + 1]).text().trim().replace(/\s+/g, ' ') : '';
+
+    if (key) {
+      caseDetails[key] = value;
+    }
+  }
+});
+
+console.log(caseDetails);
+
 
    
     const caseStatus = {};
