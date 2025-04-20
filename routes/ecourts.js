@@ -5,6 +5,16 @@ const ecourtsService = require('../services/ecourtsService');
 
 const router = express.Router();
 
+router.get('/initial-data', async (req, res) => {
+    try {
+        const initialCookies = await ecourtsService.getInitialCookies();
+        res.json({ cookies: initialCookies });
+    } catch (error) {
+        console.error('[Server] Error fetching initial cookies:', error);
+        res.status(500).json({ error: 'Failed to fetch initial cookies' });
+    }
+});
+
 router.post('/districts', asyncHandler(async (req, res) => {
     const { state_code, cookies } = req.body;
     const response = await ecourtsService.getDistricts({ state_code, cookies });

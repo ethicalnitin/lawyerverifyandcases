@@ -147,21 +147,20 @@ const submitPartySearch = async (searchParams) => {
     const {
         petres_name, rgyearP, case_status = 'Pending', fcaptcha_code,
         state_code, dist_code, court_complex_code, est_code = null, // Keep as null for consistency
-        cookies, captchaAppToken // Receive the captcha specific app_token
+        cookies, app_token // Receive the captcha specific app_token
     } = searchParams;
     if (!petres_name || !rgyearP || !fcaptcha_code || !state_code || !dist_code || !court_complex_code) {
         throw new Error('Missing required parameters for party search submission');
     }
     const data = {
         petres_name, rgyearP, case_status, fcaptcha_code,
-        state_code, dist_code, court_complex_code, est_code,
-    };
+        state_code, dist_code, court_complex_code, est_code,app_token,    };
 
     console.log('[eCourts Service] submitPartySearch - Data being sent to makeECourtsRequest:', data);
-    console.log('[eCourts Service] submitPartySearch - Using captchaAppToken:', captchaAppToken);
+    console.log('[eCourts Service] submitPartySearch - Using app_token:', app_token);
 
-    // Explicitly use captchaAppToken for the submitPartyName endpoint
-    const appTokenToUse = captchaAppToken;
+    // Explicitly use app_token for the submitPartyName endpoint
+    const appTokenToUse = app_token;
 
     return makeECourtsRequest('casestatus/submitPartyName', data, cookies, appTokenToUse);
 };
