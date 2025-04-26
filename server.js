@@ -40,15 +40,6 @@ app.use('/api/caseInformation', caseInformationRoute);
 app.use('/api/vieworder', vieworderroute);
 app.use('/api/ecourts', ecourtsRoute);
 
-app.get('/auth/initial-data', async (req, res) => {
-    try {
-        const initialCookies = await ecourtsService.getInitialCookies();
-        res.json({ cookies: initialCookies });
-    } catch (error) {
-        console.error('[Server] Error fetching initial cookies:', error);
-        res.status(500).json({ error: 'Failed to fetch initial cookies' });
-    }
-});
 
 app.get('/', (req, res) => {
     req.session.visitCount = (req.session.visitCount || 0) + 1;
