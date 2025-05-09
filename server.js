@@ -32,7 +32,7 @@ app.use(
     session({
         secret: process.env.SESSION_SECRET || 'your-default-secret-key-change-me',
         resave: false,
-        saveUninitialized: false,
+        saveUninitialized: true,
         cookie: {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',

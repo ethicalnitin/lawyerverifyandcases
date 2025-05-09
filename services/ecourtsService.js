@@ -74,10 +74,22 @@ async function getStatesAndDistrictLinks() {
 
     } catch (error) {
         console.error('[Service] Error in getStatesAndDistrictLinks:', error.message);
-        if (error.response) {
-            console.error("eCourts Response Status:", error.response.status);
-            console.error("eCourts Response Data:", error.response.data);
+        // --- ADD THIS MORE DETAILED LOGGING ---
+        if (error.code) {
+             console.error('[Service] Error Code:', error.code); // e.g., ENOTFOUND, ECONNREFUSED, EPROTO
         }
+         if (error.syscall) {
+             console.error('[Service] Error Syscall:', error.syscall); // e.g., 'getaddrinfo', 'connect'
+         }
+         if (error.config) {
+             console.error('[Service] Error Config URL:', error.config.url); // Log the URL being accessed
+         }
+         if (error.response) {
+             console.error("eCourts Response Status:", error.response.status);
+             // Avoid logging response.data here as it might be large HTML/error page
+             // console.error("eCourts Response Data:", error.response.data);
+         }
+        // --- END ADDED LOGGING ---
         throw new Error(`Failed to fetch states and district links: ${error.message}`);
     }
 }
