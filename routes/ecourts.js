@@ -1,329 +1,270 @@
 const express = require("express");
-const asyncHandler = require('express-async-handler'); // Keep using this for cleaner async error handling
-const ecourtsService = require('../services/ecourtsService'); // Correct path to your service file
+const asyncHandler = require('express-async-handler');
+const ecourtsService = require('../services/ecourtsService');
 
 const router = express.Router();
 
-// Middleware to check if session is initialized (optional but good practice)
-// router.use((req, res, next) => {
-//     if (!req.session) {
-//         console.error('[Server] Session middleware not configured correctly!');
-//         return res.status(500).json({ error: 'Session not available.' });
-//     }
-//     next();
-// });
+// --- Utility Function for Session Checks and Cookie Management ---
+function checkSession(req) {
+     if (!req.session.ecourtsState) {
+        console.warn('[Server] Missing ecourtsState in session. Session not initialized.');
+        return { error: 'Session expired or not initialized. Please start over.', status: 401 };
+    }
+    return null;
+}
 
-// --- 1. Get Initial Cookies and Token ---
-router.get('/initial-data', asyncHandler(async (req, res) => {
-    console.log('[Server] GET /initial-data');
+// --- 1. Get States (Replicates Curl 1) ---
+router.get('/states', asyncHandler(async (req, res) => {
+    console.log('[Server] GET /states');
     try {
-        const { cookies, app_token } = await ecourtsService.getInitialData();
+        // Call the new service function
+        const { states, cookies } = await ecourtsService.getStatesAndDistrictLinks();
 
-        // Store BOTH cookies and the first token in the session
-        req.session.initialCookies = cookies;
-        req.session.lastAppToken = app_token; // Store the token needed for the *next* step
+        // Store state data and initial cookies in session
+        req.session.ecourtsState = {
+            cookies: cookies,
+            states: states, // Store the list of states and their links
+            selectedStateLink: null, // To be set later
+            selectedDistrictCourtUrl: null, // To be set later
+            scid: null, // To be set later
+            token: null, // To be set later
+            captchaValue: null, // To be provided by client
+            searchResults: null // To be set later
+        };
 
-        // Save session explicitly to ensure data is stored before responding
+
         req.session.save(err => {
             if (err) {
-                console.error('[Server] Error saving session after initial data fetch:', err);
+                console.error('[Server] Error saving session after state fetch:', err);
                 return res.status(500).json({ error: 'Failed to save session' });
             }
-            console.log('[Server] Session cookies stored:', req.session.initialCookies);
-            console.log('[Server] Session initial app_token stored:', req.session.lastAppToken);
-            // Send only the token the client needs for the *next* request (e.g., getting districts)
-            res.json({ app_token });
+            console.log('[Server] Session initialized with states and cookies.');
+            // Return just the state names and codes/links to the client
+            res.json({ states: states.map(s => ({ name: s.name, state_code: s.state_code })) });
         });
 
     } catch (error) {
-        console.error('[Server] Error in /initial-data route:', error.message);
-        // Send a generic error, service layer logged details
-        res.status(500).json({ error: error.message || 'Failed to fetch initial eCourts data' });
+        console.error('[Server] Error in /states route:', error.message);
+        res.status(500).json({ error: error.message || 'Failed to fetch states from eCourts' });
     }
 }));
 
-// --- Utility Function for Session Checks ---
-function checkSession(req) {
-    if (!req.session.initialCookies) {
-        console.warn('[Server] Missing initialCookies in session.');
-        return { error: 'Session expired or not initialized. Please start over.', status: 401 };
-    }
-    if (!req.session.lastAppToken) {
-        console.warn('[Server] Missing lastAppToken in session.');
-        // This might happen if a previous step failed silently
-         return { error: 'Missing required token in session. Please try the previous step again.', status: 400 };
-    }
-    return null; // No error
-}
-
-
-// --- 2. Get Districts ---
+// --- 2. Get Districts (Replicates Curl 2) ---
 router.post('/districts', asyncHandler(async (req, res) => {
     console.log('[Server] POST /districts');
-    const sessionError = checkSession(req);
-    if (sessionError) {
-        return res.status(sessionError.status).json({ error: sessionError.error });
-    }
+     const sessionError = checkSession(req);
+     if (sessionError) {
+         return res.status(sessionError.status).json({ error: sessionError.error });
+     }
 
-    const { state_code, app_token: clientToken } = req.body; // Get state_code and token from client
+     const { state_code } = req.body; // Client sends the state code selected
 
-    // Basic validation
     if (!state_code) {
         return res.status(400).json({ error: 'Missing state_code in request body' });
     }
-     if (!clientToken) {
-        return res.status(400).json({ error: 'Missing app_token in request body' });
-    }
-    // Optional: Verify client token matches the one expected from the previous step in session?
-    // if (clientToken !== req.session.lastAppToken) {
-    //     console.warn(`[Server] Token mismatch: Client sent ${clientToken}, session expected ${req.session.lastAppToken}`);
-    //     // Decide how strict to be - maybe allow if client has *a* token?
-    //     // return res.status(400).json({ error: 'Token mismatch or out of sequence request.' });
-    // }
 
+    // Find the state link from the session data
+    const selectedState = req.session.ecourtsState.states.find(s => s.state_code === state_code);
+
+     if (!selectedState) {
+         console.warn(`[Server] Invalid state_code received: ${state_code}`);
+         return res.status(400).json({ error: 'Invalid state_code' });
+     }
 
     try {
-        const sessionCookies = req.session.initialCookies;
-        // Use the token provided by the client for *this* request
-        const result = await ecourtsService.getDistricts({
-            state_code,
-            app_token: clientToken, // Use the token client sent (should be from /initial-data)
-            cookies: sessionCookies
-        });
+        // Call the new service function using the state link and current cookies
+        const { districts, cookies } = await ecourtsService.getDistrictsForState(selectedState.link, req.session.ecourtsState.cookies);
 
-        // IMPORTANT: Update the session with the *new* token received for the *next* step
-        if (result.next_app_token) {
-             req.session.lastAppToken = result.next_app_token;
-             console.log('[Server] Updated session lastAppToken after /districts:', req.session.lastAppToken);
-        } else {
-             console.warn('[Server] No next_app_token received from getDistricts service call.');
-             // If no token, the next call might fail. Keep the old one? Or clear it?
-             // Let's keep the old one for now, maybe it's reusable? Or maybe next call doesn't need one?
-        }
+         // Store the selected state link and updated cookies in session
+         req.session.ecourtsState.selectedStateLink = selectedState.link;
+         req.session.ecourtsState.cookies = cookies;
+         req.session.ecourtsState.districts = districts; // Store districts for potential later use (e.g., mapping district code to URL)
+
 
         req.session.save(err => {
-             if (err) {
-                 console.error('[Server] Error saving session after /districts:', err);
-                 // Proceed but log error, or return 500? Let's proceed for now.
-             }
-             // Send district data AND the token needed for the *next* client request
-             res.json({ districts: result.data, app_token: result.next_app_token || clientToken }); // Send back the new token
+            if (err) {
+                 console.error('[Server] Error saving session after district fetch:', err);
+                 return res.status(500).json({ error: 'Failed to save session' });
+            }
+            console.log('[Server] Session updated with districts and selected state link.');
+            // Return the list of districts to the client
+            res.json({ districts: districts });
         });
 
     } catch (error) {
         console.error('[Server] Error in /districts route:', error.message);
-        res.status(500).json({ error: error.message || 'Failed to fetch districts' });
+        res.status(500).json({ error: error.message || 'Failed to fetch districts for state' });
     }
 }));
 
+// --- 3. Initialize Case Search (Replicates Curl 3) ---
+// This step requires the client to provide the selected district code.
+// We need to figure out the district court's base URL (e.g., https://lucknow.dcourts.gov.in)
+// based on the selected district. This mapping is NOT present in the curls 1 and 2 response.
+// You might need a separate mapping or another step to get this URL.
+// For now, let's assume the client sends the `districtCourtBaseUrl`.
+router.post('/case-search-init', asyncHandler(async (req, res) => {
+     console.log('[Server] POST /case-search-init');
+     const sessionError = checkSession(req);
+     if (sessionError) {
+         return res.status(sessionError.status).json({ error: sessionError.error });
+     }
 
-// --- 3. Get Complexes ---
-router.post('/complexes', asyncHandler(async (req, res) => {
-     console.log('[Server] POST /complexes');
-    const sessionError = checkSession(req);
-    if (sessionError) {
-        return res.status(sessionError.status).json({ error: sessionError.error });
-    }
+     // Assume client sends the base URL of the selected district court website
+     // In a real app, you might need to lookup this URL based on the district code selected previously
+     const { districtCourtBaseUrl } = req.body;
 
-    // Client needs to send state, district, and the token from the *previous* step (/districts)
-    const { state_code, dist_code, app_token: clientToken } = req.body;
-
-    if (!state_code || !dist_code || !clientToken) {
-        return res.status(400).json({ error: 'Missing parameters: state_code, dist_code, or app_token' });
-    }
-    // Optional: Check clientToken against req.session.lastAppToken here too
-
-    try {
-        const sessionCookies = req.session.initialCookies;
-        const result = await ecourtsService.getComplexes({
-            state_code,
-            dist_code,
-            app_token: clientToken, // Use token from client (should be from /districts response)
-            cookies: sessionCookies
-        });
-
-        if (result.next_app_token) {
-            req.session.lastAppToken = result.next_app_token;
-            console.log('[Server] Updated session lastAppToken after /complexes:', req.session.lastAppToken);
-        } else {
-             console.warn('[Server] No next_app_token received from getComplexes service call.');
-        }
-
-         req.session.save(err => {
-             if (err) console.error('[Server] Error saving session after /complexes:', err);
-             // Send complex data and the token for the *next* step
-             res.json({ complexes: result.data, app_token: result.next_app_token || clientToken });
-        });
-
-    } catch (error) {
-        console.error('[Server] Error in /complexes route:', error.message);
-        res.status(500).json({ error: error.message || 'Failed to fetch court complexes' });
-    }
-}));
-
-
-// --- 4. Set Location ---
-router.post('/set-location', asyncHandler(async (req, res) => {
-    console.log('[Server] POST /set-location');
-    const sessionError = checkSession(req);
-    if (sessionError) {
-        return res.status(sessionError.status).json({ error: sessionError.error });
-    }
-
-    // Client sends selected codes and the token from the *previous* step (/complexes)
-    const { complex_code, selected_state_code, selected_dist_code, selected_est_code, app_token: clientToken } = req.body;
-
-     if (!complex_code || !selected_state_code || !selected_dist_code || !clientToken) {
-        return res.status(400).json({ error: 'Missing parameters: complex_code, selected_state_code, selected_dist_code, or app_token' });
-    }
-     // Note: selected_est_code might be optional or null
+     if (!districtCourtBaseUrl) {
+         return res.status(400).json({ error: 'Missing districtCourtBaseUrl in request body' });
+     }
 
     try {
-        const sessionCookies = req.session.initialCookies;
-        const result = await ecourtsService.setLocation({
-            complex_code,
-            selected_state_code,
-            selected_dist_code,
-            selected_est_code, // Pass it along (can be null/undefined)
-            app_token: clientToken, // Use token from client (should be from /complexes response)
-            cookies: sessionCookies
-        });
+        // Call the new service function to get scid and token
+        const { scid, token, cookies } = await ecourtsService.getCaseSearchPageData(districtCourtBaseUrl, req.session.ecourtsState.cookies);
 
-         if (result.next_app_token) {
-            req.session.lastAppToken = result.next_app_token;
-            console.log('[Server] Updated session lastAppToken after /set-location:', req.session.lastAppToken);
-        } else {
-             console.warn('[Server] No next_app_token received from setLocation service call.');
-        }
-
-        req.session.save(err => {
-             if (err) console.error('[Server] Error saving session after /set-location:', err);
-             // Send confirmation/data and the token for the *next* step (fetching captcha)
-             res.json({ result: result.data, app_token: result.next_app_token || clientToken });
-        });
-
-    } catch (error) {
-        console.error('[Server] Error in /set-location route:', error.message);
-        res.status(500).json({ error: error.message || 'Failed to set location' });
-    }
-}));
-
-
-// --- 5. Fetch Captcha (for User Input) ---
-// Changed route name slightly for clarity
-router.post('/fetch-user-captcha', asyncHandler(async (req, res) => {
-     console.log('[Server] POST /fetch-user-captcha');
-    const sessionError = checkSession(req);
-    if (sessionError) {
-        return res.status(sessionError.status).json({ error: sessionError.error });
-    }
-
-    // Client sends the token from the *previous* step (/set-location)
-    const { app_token: clientToken } = req.body;
-    if (!clientToken) {
-         return res.status(400).json({ error: 'Missing app_token in request body' });
-    }
-
-    try {
-        const sessionCookies = req.session.initialCookies;
-        const result = await ecourtsService.fetchCaptcha({
-             app_token: clientToken, // Use token from client (should be from /set-location response)
-             cookies: sessionCookies
-        });
-
-        if (result.next_app_token) {
-            req.session.lastAppToken = result.next_app_token;
-            console.log('[Server] Updated session lastAppToken after /fetch-user-captcha:', req.session.lastAppToken);
-        } else {
-             console.warn('[Server] No next_app_token received from fetchCaptcha service call.');
-             // This might be okay if the search uses the *same* token as captcha fetch,
-             // but the cURL suggests getCaptcha provides the token FOR submitPartyName.
-             // If no token received here, the final search might fail.
-        }
+         // Store extracted data and updated cookies in session
+         req.session.ecourtsState.selectedDistrictCourtUrl = districtCourtBaseUrl;
+         req.session.ecourtsState.scid = scid;
+         req.session.ecourtsState.token = token; // Store token name and value
+         req.session.ecourtsState.cookies = cookies;
 
 
         req.session.save(err => {
-             if (err) console.error('[Server] Error saving session after /fetch-user-captcha:', err);
-             // Send image URL and the token for the *final* search step
-             if (!result.imageUrl) {
-                 console.error('[Server] Failed to extract captcha image URL in route.');
-                 return res.status(500).json({ error: 'Failed to retrieve captcha image URL' });
-             }
-             res.json({ imageUrl: result.imageUrl, app_token: result.next_app_token || clientToken });
+            if (err) {
+                 console.error('[Server] Error saving session after case search init:', err);
+                 return res.status(500).json({ error: 'Failed to save session' });
+            }
+            console.log('[Server] Session updated with scid, token, and district court URL.');
+            // Return scid and token name (value is kept on server) to the client, client needs scid to request captcha
+            res.json({ scid: scid, tokenName: token.name }); // Client needs scid to request captcha image
         });
 
     } catch (error) {
-        console.error('[Server] Error in /fetch-user-captcha route:', error.message);
-        res.status(500).json({ error: error.message || 'Failed to fetch captcha' });
+        console.error('[Server] Error in /case-search-init route:', error.message);
+         res.status(500).json({ error: error.message || 'Failed to initialize case search' });
     }
 }));
 
 
-// --- 6. Submit Party Search ---
-router.post('/search-party', asyncHandler(async (req, res) => {
-    console.log('[Server] POST /search-party');
-    const sessionError = checkSession(req);
-    if (sessionError) {
-        return res.status(sessionError.status).json({ error: sessionError.error });
-    }
+// --- 4. Get Captcha Image (Replicates Curl 4) ---
+// Client requests this after getting scid from /case-search-init
+router.get('/captcha/:scid', asyncHandler(async (req, res) => {
+     console.log('[Server] GET /captcha');
+     const sessionError = checkSession(req);
+     if (sessionError) {
+         return res.status(sessionError.status).json({ error: sessionError.error });
+     }
 
-    // Client sends search parameters, user captcha, and the token from the *previous* step (/fetch-user-captcha)
-    const {
-        petres_name, rgyearP, case_status, fcaptcha_code,
-        state_code, dist_code, court_complex_code, // These should ideally match the set location
-        app_token: clientToken
-    } = req.body;
+     const { scid } = req.params; // Get scid from URL parameter
 
-    // Validate required fields
-    if (!petres_name || !rgyearP || !fcaptcha_code || !state_code || !dist_code || !court_complex_code || !clientToken) {
-        return res.status(400).json({ error: 'Missing required parameters for party search' });
-    }
+     // Verify scid matches the one in session (optional but good practice)
+     if (req.session.ecourtsState.scid !== scid) {
+         console.warn('[Server] Captcha request scid mismatch with session.');
+          // Decide how to handle mismatch - could be session issue or invalid request
+          // For now, let's use the one from the session to proceed if session exists
+          console.warn('[Server] Using scid from session instead of request param.');
+          // return res.status(400).json({ error: 'Invalid scid' }); // Strict check
+     }
+
+     const currentScid = req.session.ecourtsState.scid;
+     const districtCourtBaseUrl = req.session.ecourtsState.selectedDistrictCourtUrl;
+
+
+     if (!currentScid || !districtCourtBaseUrl) {
+          console.warn('[Server] Missing scid or districtCourtBaseUrl in session for captcha request.');
+          return res.status(400).json({ error: 'Case search not initialized. Please go back and select district.' });
+     }
+
 
     try {
-        const sessionCookies = req.session.initialCookies;
-        // Call the correct service function: submitPartySearch
-        const result = await ecourtsService.submitPartySearch({
-            petres_name,
-            rgyearP,
-            case_status: case_status || 'Pending', // Default if not provided
-            fcaptcha_code,
-            state_code,
-            dist_code,
-            court_complex_code,
-            // est_code might be needed? Check cURL and API requirements
-            app_token: clientToken, // Use token from client (should be from /fetch-user-captcha response)
-            cookies: sessionCookies
+        // Call the new service function to get image data
+        const { imageData, cookies } = await ecourtsService.getCaptchaImage(districtCourtBaseUrl, currentScid, req.session.ecourtsState.cookies);
+
+         // Update cookies in session
+         req.session.ecourtsState.cookies = cookies;
+
+        req.session.save(err => {
+            if (err) {
+                 console.error('[Server] Error saving session after captcha fetch:', err);
+                 // Continue anyway, captcha might still work with old cookies
+            }
+             console.log('[Server] Session updated after captcha request.');
+             // Set content type to image and send the binary data
+             res.setHeader('Content-Type', 'image/png'); // Assuming PNG, verify actual type
+             res.send(imageData);
         });
 
-        // Do we get another token? Update session if so, though it might not be needed by client now.
-         if (result.next_app_token) {
-            req.session.lastAppToken = result.next_app_token;
-            console.log('[Server] Updated session lastAppToken after /search-party:', req.session.lastAppToken);
-            req.session.save(err => { // Save the potentially final token
-                 if (err) console.error('[Server] Error saving session after /search-party:', err);
-            });
-        } else {
-             console.log('[Server] No further app_token received from submitPartySearch.');
-             // Clear the token maybe? Or leave the last one?
-             // req.session.lastAppToken = null; // Optional cleanup
-        }
-
-
-        // Send back the final search results
-        // The format of result.data needs inspection (HTML? JSON?)
-        res.json({ results: result.data });
 
     } catch (error) {
-        console.error('[Server] Error in /search-party route:', error.message);
-        // Check if the error message contains useful info from eCourts (e.g., "Captcha code does not match")
-        // The service layer already logged details. Send specific message if possible.
-        if (error.message.includes('eCourts API error')) {
-             res.status(502).json({ error: error.message }); // 502 Bad Gateway might be appropriate
-        } else {
-            res.status(500).json({ error: 'Failed to perform party search' });
-        }
+        console.error('[Server] Error in /captcha route:', error.message);
+         res.status(500).json({ error: error.message || 'Failed to fetch captcha image' });
     }
 }));
+
+
+// --- 5. Submit Case Search Form (Replicates Curl 5) ---
+// Client sends search parameters and the solved captcha value
+router.post('/search-case', asyncHandler(async (req, res) => {
+     console.log('[Server] POST /search-case');
+     const sessionError = checkSession(req);
+     if (sessionError) {
+         return res.status(sessionError.status).json({ error: sessionError.error });
+     }
+
+     // Client provides the search criteria and the solved captcha
+     const { captchaValue, ...searchParams } = req.body;
+
+     const { selectedDistrictCourtUrl, scid, token, cookies } = req.session.ecourtsState;
+
+     // Check if required session data is present
+     if (!selectedDistrictCourtUrl || !scid || !token || !cookies) {
+         console.warn('[Server] Missing required data in session for search submission.');
+         return res.status(400).json({ error: 'Case search not initialized or session incomplete. Please start over.' });
+     }
+
+    if (!captchaValue || Object.keys(searchParams).length === 0) {
+        return res.status(400).json({ error: 'Missing captcha value or search parameters in request body' });
+    }
+
+
+    try {
+        // Call the new service function to submit the form
+        const { results, cookies: updatedCookies } = await ecourtsService.submitCaseSearch(
+            selectedDistrictCourtUrl,
+            scid,
+            token, // Pass the token object {name, value}
+            captchaValue,
+            searchParams, // Pass the search parameters from client
+            cookies
+        );
+
+         // Store results and updated cookies in session (optional, depends on app flow)
+         req.session.ecourtsState.searchResults = results;
+         req.session.ecourtsState.cookies = updatedCookies;
+
+        req.session.save(err => {
+            if (err) {
+                 console.error('[Server] Error saving session after search submit:', err);
+                 // Continue anyway, client has the results
+            }
+             console.log('[Server] Session updated after search submit.');
+             // Return the search results to the client
+             res.json({ results: results });
+        });
+
+
+    } catch (error) {
+        console.error('[Server] Error in /search-case route:', error.message);
+         res.status(500).json({ error: error.message || 'Failed to submit case search' });
+    }
+}));
+
+
+// Remove old routes or logic not matching the curl flow
+// router.get('/initial-data', ...) - Replaced by /states
+// router.post('/districts', ...) - Replaced by /districts
+// router.post('/complexes', ...) - This step is not in the curl flow, remove or adjust if needed for district URL mapping
+// router.post('/set-location', ...) - This step is not in the curl flow, remove
 
 
 module.exports = router;
